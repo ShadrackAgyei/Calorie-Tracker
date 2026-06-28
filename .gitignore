@@ -1,0 +1,35 @@
+.DS_Store
+node_modules/
+
+# Expo
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+
+# Native keys
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.pem
+
+# local env
+.env*.local
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Flutter
+chopwise-flutter/.dart_tool/
+chopwise-flutter/build/
+chopwise-flutter/.flutter-plugins
+chopwise-flutter/android/local.properties
+chopwise-flutter/android/.gradle/
+
+# Vercel
+.vercel
+
+# macOS
+.DS_Store

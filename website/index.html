@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ChopWise — Track Every Ghanaian Meal with AI</title>
+  <meta name="description" content="ChopWise uses AI to identify and log your food — from Jollof Rice to Kelewele — with one photo. 300+ Ghanaian foods. Free." />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'gh-sage':   '#99afa3',
+            'gh-green':  '#007A3D',
+            'gh-mid':    '#005C2E',
+            'gh-deep':   '#002E17',
+            'gh-gold':   '#3b0f2e',
+            'gh-gold2':  '#3b0f2e',
+            'gh-red':    '#CE1126',
+            'gh-cream':  '#FDF8EF',
+            'gh-sand':   '#F5EFE0',
+          },
+          fontFamily: {
+            display: ['Syne', 'sans-serif'],
+            body:    ['DM Sans', 'sans-serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'DM Sans', sans-serif; background: #FDF8EF; color: #1a2e1a; overflow-x: hidden; }
+
+    /* ── Nav scroll effect ── */
+    .nav-scrolled { background: rgba(140, 165, 153, 0.97) !important; backdrop-filter: blur(16px); box-shadow: 0 1px 0 rgba(59,15,46,.15); }
+
+    /* ── Hero background ── */
+    .hero-bg {
+      background: #99afa3;
+      background-image:
+        radial-gradient(ellipse 80% 60% at 70% 50%, rgba(120,145,135,.4) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 20% 80%, rgba(59,15,46,.06) 0%, transparent 60%);
+    }
+
+    /* ── Kente diamond tiling (very subtle) ── */
+    .kente-bg::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg width='40' height='40' viewBox='0 0 40 40' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M20 0 L40 20 L20 40 L0 20 Z' fill='none' stroke='rgba(59,15,46,0.06)' stroke-width='1'/%3E%3C/svg%3E");
+      background-size: 40px 40px;
+      pointer-events: none;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(28px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(var(--r,0deg)); }
+      50%       { transform: translateY(-12px) rotate(var(--r,0deg)); }
+    }
+    @keyframes spinRing {
+      from { stroke-dashoffset: 251; }
+      to   { stroke-dashoffset: 60; }
+    }
+    @keyframes pulse-ring {
+      0%,100% { transform: scale(1); opacity: .5; }
+      50%      { transform: scale(1.06); opacity: .2; }
+    }
+
+    .fade-up { opacity: 0; animation: fadeUp .7s cubic-bezier(.22,1,.36,1) forwards; }
+    .fade-up-1 { animation-delay: .05s; }
+    .fade-up-2 { animation-delay: .18s; }
+    .fade-up-3 { animation-delay: .32s; }
+    .fade-up-4 { animation-delay: .46s; }
+
+    .food-float { position: absolute; animation: float 5s ease-in-out infinite; pointer-events: none; user-select: none; }
+
+    /* ── Phone mockup ── */
+    .phone {
+      width: 220px;
+      height: 444px;
+      background: #0d1f0f;
+      border-radius: 38px;
+      border: 2.5px solid rgba(255,255,255,.12);
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 40px 80px rgba(0,0,0,.55), 0 0 0 1px rgba(0,0,0,.4), inset 0 0 0 1px rgba(255,255,255,.06);
+    }
+    .phone::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 90px; height: 28px;
+      background: #0d1f0f;
+      border-radius: 0 0 18px 18px;
+      z-index: 10;
+    }
+    .phone-screen {
+      position: absolute;
+      inset: 0;
+      background: #0f1f0f;
+      padding: 36px 14px 14px;
+      overflow: hidden;
+    }
+    .ring-svg { animation: spinRing 1.8s .6s cubic-bezier(.22,1,.36,1) both; }
+    .phone-float { animation: float 6s ease-in-out infinite; }
+
+    /* ── Section reveal ── */
+    .reveal { opacity: 0; transform: translateY(32px); transition: opacity .7s cubic-bezier(.22,1,.36,1), transform .7s cubic-bezier(.22,1,.36,1); }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ── Testimonial card ── */
+    .tcard { background: white; border: 1px solid rgba(0,122,61,.12); border-radius: 20px; padding: 28px; box-shadow: 0 4px 24px rgba(0,0,0,.06); transition: transform .25s ease, box-shadow .25s ease; }
+    .tcard:hover { transform: translateY(-4px); box-shadow: 0 12px 40px rgba(0,0,0,.1); }
+
+    /* ── Feature card ── */
+    .fcard { background: white; border: 1px solid rgba(0,122,61,.1); border-radius: 20px; padding: 32px 28px; transition: box-shadow .25s ease, transform .25s ease; }
+    .fcard:hover { box-shadow: 0 12px 40px rgba(0,122,61,.12); transform: translateY(-3px); }
+
+    /* ── Gold glow button ── */
+    .btn-gold {
+      background: #3b0f2e;
+      color: white;
+      font-weight: 700;
+      border-radius: 14px;
+      padding: 14px 32px;
+      transition: transform .2s ease, box-shadow .2s ease, background .2s ease;
+      box-shadow: 0 4px 20px rgba(59,15,46,.35);
+    }
+    .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(59,15,46,.5); background: #5a1847; }
+
+    .btn-outline {
+      background: transparent;
+      color: white;
+      font-weight: 600;
+      border-radius: 14px;
+      padding: 13px 28px;
+      border: 1.5px solid rgba(255,255,255,.3);
+      transition: border-color .2s ease, background .2s ease;
+    }
+    .btn-outline:hover { border-color: rgba(255,255,255,.7); background: rgba(255,255,255,.06); }
+
+    /* ── Step connector ── */
+    .step-line::after {
+      content: '';
+      position: absolute;
+      right: -50%;
+      top: 28px;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(0,122,61,.3), rgba(0,122,61,.05));
+      z-index: 0;
+    }
+
+    /* ── Gradient text ── */
+    .text-gradient {
+      background: linear-gradient(135deg, #3b0f2e 0%, #6b2055 40%, #3b0f2e 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* ── Scroll bar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #99afa3; }
+    ::-webkit-scrollbar-thumb { background: #007A3D; border-radius: 3px; }
+  </style>
+</head>
+<body class="font-body">
+
+<!-- ─────────────────── NAV ─────────────────── -->
+<nav id="nav" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300" style="background: transparent;">
+  <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+    <!-- Logo -->
+    <a href="#" class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-xl flex items-center justify-center" style="background: #007A3D;">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <circle cx="9" cy="9" r="7" stroke="#3b0f2e" stroke-width="2"/>
+          <path d="M6 9.5 C6.5 8 7.5 7 9 7 C10.5 7 11.5 8 12 9.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+          <circle cx="9" cy="11" r="1.5" fill="#3b0f2e"/>
+        </svg>
+      </div>
+      <span class="font-display font-700 text-lg text-gh-deep tracking-tight">ChopWise</span>
+    </a>
+
+    <!-- Links -->
+    <div class="hidden md:flex items-center gap-8">
+      <a href="#features"     class="text-sm hover:text-gh-deep transition-colors text-gh-deep/70">Features</a>
+      <a href="#how-it-works" class="text-sm hover:text-gh-deep transition-colors text-gh-deep/70">How it works</a>
+      <a href="#testimonials" class="text-sm hover:text-gh-deep transition-colors text-gh-deep/70">Reviews</a>
+    </div>
+
+    <!-- CTA -->
+    <a href="#download" class="btn-gold text-sm hidden md:inline-flex items-center gap-2" style="padding: 10px 22px; border-radius: 10px; font-size: 13px;">
+      Download Free
+    </a>
+
+    <!-- Mobile hamburger (purely cosmetic for static page) -->
+    <button class="md:hidden flex flex-col gap-1.5 p-2" aria-label="Menu">
+      <span class="block w-5 h-0.5 bg-white/70 rounded"></span>
+      <span class="block w-5 h-0.5 bg-white/70 rounded"></span>
+    </button>
+  </div>
+</nav>
+
+
+<!-- ─────────────────── HERO ─────────────────── -->
+<section class="hero-bg kente-bg relative min-h-screen flex items-center pt-16 overflow-hidden">
+
+  <!-- Floating food emojis -->
+  <span class="food-float text-4xl" style="top:12%;left:6%;--r:-8deg;animation-delay:0s;opacity:.5">🍌</span>
+  <span class="food-float text-3xl" style="top:22%;left:88%;--r:6deg;animation-delay:1.2s;opacity:.45">🍚</span>
+  <span class="food-float text-5xl" style="top:68%;left:3%;--r:4deg;animation-delay:.6s;opacity:.35">🥘</span>
+  <span class="food-float text-3xl" style="top:78%;left:82%;--r:-5deg;animation-delay:1.8s;opacity:.4">🫙</span>
+  <span class="food-float text-4xl" style="top:40%;left:92%;--r:10deg;animation-delay:.9s;opacity:.3">🥗</span>
+  <span class="food-float text-3xl" style="top:55%;left:10%;--r:-12deg;animation-delay:2.1s;opacity:.3">🌽</span>
+
+  <div class="max-w-6xl mx-auto px-6 py-20 w-full">
+    <div class="grid lg:grid-cols-2 gap-16 items-center">
+
+      <!-- Left: copy -->
+      <div>
+        <div class="fade-up fade-up-1 inline-flex items-center gap-2 mb-6 px-3.5 py-1.5 rounded-full text-xs font-600" style="background: rgba(59,15,46,.4); border: 1px solid rgba(59,15,46,.6); color: white;">
+          <span class="w-1.5 h-1.5 rounded-full bg-gh-gold inline-block animate-pulse"></span>
+          Now available — free to download
+        </div>
+
+        <h1 class="fade-up fade-up-2 font-display font-800 leading-[1.05] text-gh-deep mb-6" style="font-size: clamp(2.4rem, 5.5vw, 3.8rem);">
+          Track every<br/>
+          <span class="text-gradient">Ghanaian meal</span><br/>
+          with AI
+        </h1>
+
+        <p class="fade-up fade-up-3 text-gh-deep/70 leading-relaxed mb-10" style="font-size: 1.05rem; max-width: 480px;">
+          Snap a photo of your Jollof Rice, Banku, or Kelewele — ChopWise's AI identifies it instantly and logs your calories, protein, carbs, and fat. No guessing. No manual databases.
+        </p>
+
+        <div class="fade-up fade-up-4 flex flex-wrap gap-3 mb-12">
+          <a href="#download" class="btn-gold flex items-center gap-2.5 font-display">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+            App Store
+          </a>
+          <a href="#download" class="btn-outline flex items-center gap-2.5 font-display">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M3.18 23.28c.31.17.67.17.99-.01l12.76-7.04-2.88-2.87-10.87 9.92zM.35 1.32C.13 1.67 0 2.12 0 2.66v18.68c0 .54.13.99.36 1.34l.07.07 10.46-10.46v-.25L.42 1.25l-.07.07zM20.12 9.82l-2.67-1.47-3.19 3.19 3.19 3.19 2.68-1.48c.77-.42.77-1.11.01-1.53l-.02.1zM4.17.72L16.93 7.76 14.05 10.64 3.18.72c.32-.18.68-.18.99 0z"/></svg>
+            Google Play
+          </a>
+        </div>
+
+        <!-- Social proof pills -->
+        <div class="fade-up fade-up-4 flex items-center gap-4 flex-wrap">
+          <div class="flex -space-x-2">
+            <div class="w-8 h-8 rounded-full border-2 border-gh-deep flex items-center justify-center text-sm" style="background:#2d5a3d">👨🏿</div>
+            <div class="w-8 h-8 rounded-full border-2 border-gh-deep flex items-center justify-center text-sm" style="background:#3d6e4d">👩🏾</div>
+            <div class="w-8 h-8 rounded-full border-2 border-gh-deep flex items-center justify-center text-sm" style="background:#1d4a2d">👨🏾</div>
+            <div class="w-8 h-8 rounded-full border-2 border-gh-deep flex items-center justify-center text-sm" style="background:#4d7e5d">👩🏿</div>
+          </div>
+          <div class="text-gh-deep/70 text-sm">
+            <span class="text-gh-deep font-600">1,000+</span> Ghanaians already tracking
+          </div>
+          <div class="flex items-center gap-1 text-gh-gold text-sm font-600">
+            ★★★★★ <span class="text-gh-deep/60 font-400 ml-1">4.9 rating</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: phone mockup -->
+      <div class="flex justify-center lg:justify-end">
+        <div class="relative phone-float">
+
+          <!-- Glow halo -->
+          <div class="absolute inset-0 rounded-full" style="background: radial-gradient(ellipse at center, rgba(0,122,61,.4) 0%, transparent 70%); transform: scale(1.5); animation: pulse-ring 3s ease-in-out infinite;"></div>
+
+          <div class="phone mx-auto relative z-10">
+            <div class="phone-screen">
+              <!-- Status bar -->
+              <div class="flex justify-between items-center text-white/40 mb-4" style="font-size: 9px;">
+                <span>9:41</span>
+                <span>●●●</span>
+              </div>
+
+              <!-- Greeting -->
+              <p style="font-size: 10px; color: rgba(255,255,255,.45); margin-bottom: 2px;">Good morning, Kofi 👋</p>
+              <p style="font-size: 13px; color: white; font-weight: 700; font-family: 'Syne',sans-serif; margin-bottom: 14px;">Today's calories</p>
+
+              <!-- Calorie ring -->
+              <div style="display:flex; justify-content:center; margin-bottom: 14px; position:relative;">
+                <svg width="110" height="110" viewBox="0 0 90 90">
+                  <circle cx="45" cy="45" r="40" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8"/>
+                  <circle cx="45" cy="45" r="40" fill="none" stroke="#007A3D" stroke-width="8"
+                    stroke-linecap="round"
+                    stroke-dasharray="251"
+                    stroke-dashoffset="80"
+                    class="ring-svg"
+                    transform="rotate(-90 45 45)"/>
+                  <text x="45" y="41" text-anchor="middle" fill="white" style="font-size:13px;font-weight:800;font-family:Syne,sans-serif">1,240</text>
+                  <text x="45" y="52" text-anchor="middle" fill="rgba(255,255,255,.4)" style="font-size:7px;">of 2,100 kcal</text>
+                </svg>
+              </div>
+
+              <!-- Macro pills -->
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px;">
+                <div style="background:rgba(245,158,11,.15);border-radius:10px;padding:6px 4px;text-align:center;">
+                  <div style="font-size:10px;font-weight:700;color:#F59E0B;">64g</div>
+                  <div style="font-size:7px;color:rgba(255,255,255,.4);">Protein</div>
+                </div>
+                <div style="background:rgba(16,185,129,.15);border-radius:10px;padding:6px 4px;text-align:center;">
+                  <div style="font-size:10px;font-weight:700;color:#10B981;">148g</div>
+                  <div style="font-size:7px;color:rgba(255,255,255,.4);">Carbs</div>
+                </div>
+                <div style="background:rgba(99,102,241,.15);border-radius:10px;padding:6px 4px;text-align:center;">
+                  <div style="font-size:10px;font-weight:700;color:#6366F1;">38g</div>
+                  <div style="font-size:7px;color:rgba(255,255,255,.4);">Fat</div>
+                </div>
+              </div>
+
+              <!-- Meal cards -->
+              <div style="font-size:9px;color:rgba(255,255,255,.4);margin-bottom:6px;font-weight:600;letter-spacing:.04em;">TODAY'S MEALS</div>
+              <div style="display:flex;flex-direction:column;gap:5px;">
+                <div style="background:rgba(245,158,11,.1);border-radius:10px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:14px;">🍌</span>
+                    <div>
+                      <div style="font-size:9px;color:white;font-weight:600;">Kelewele</div>
+                      <div style="font-size:7px;color:rgba(255,255,255,.35);">Breakfast</div>
+                    </div>
+                  </div>
+                  <span style="font-size:9px;color:#F59E0B;font-weight:700;">320 kcal</span>
+                </div>
+                <div style="background:rgba(16,185,129,.1);border-radius:10px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:14px;">🍚</span>
+                    <div>
+                      <div style="font-size:9px;color:white;font-weight:600;">Jollof Rice</div>
+                      <div style="font-size:7px;color:rgba(255,255,255,.35);">Lunch</div>
+                    </div>
+                  </div>
+                  <span style="font-size:9px;color:#10B981;font-weight:700;">480 kcal</span>
+                </div>
+                <div style="background:rgba(99,102,241,.1);border-radius:10px;padding:7px 10px;display:flex;justify-content:space-between;align-items:center;">
+                  <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="font-size:14px;">🥘</span>
+                    <div>
+                      <div style="font-size:9px;color:white;font-weight:600;">Waakye</div>
+                      <div style="font-size:7px;color:rgba(255,255,255,.35);">Dinner</div>
+                    </div>
+                  </div>
+                  <span style="font-size:9px;color:#6366F1;font-weight:700;">440 kcal</span>
+                </div>
+              </div>
+
+              <!-- Bottom tab bar -->
+              <div style="position:absolute;bottom:0;left:0;right:0;height:44px;background:#0a180c;display:flex;align-items:center;justify-content:space-around;border-top:1px solid rgba(255,255,255,.06);">
+                <div style="text-align:center;font-size:18px;opacity:.9">🏠</div>
+                <div style="text-align:center;font-size:18px;opacity:.35">📊</div>
+                <div style="background:#007A3D;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px">📷</div>
+                <div style="text-align:center;font-size:18px;opacity:.35">📅</div>
+                <div style="text-align:center;font-size:18px;opacity:.35">👤</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating badge: AI detected -->
+          <div class="absolute -left-16 top-1/4 bg-white rounded-2xl px-3 py-2 shadow-xl z-20" style="border: 1px solid rgba(0,122,61,.15);">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🤖</span>
+              <div>
+                <div class="text-xs font-700 text-gh-deep" style="font-family:'Syne',sans-serif;">AI Detected</div>
+                <div class="text-xs text-green-600 font-600">Jollof Rice ✓</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Floating badge: calorie count -->
+          <div class="absolute -right-14 bottom-1/3 bg-gh-green rounded-2xl px-3 py-2 shadow-xl z-20">
+            <div class="text-xs font-700 text-white" style="font-family:'Syne',sans-serif;">480 kcal</div>
+            <div class="text-xs text-white/60">P: 18g · C: 72g</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────── KENTE DIVIDER ─────────────────── -->
+
+
+<!-- ─────────────────── STATS BAR ─────────────────── -->
+<section class="py-10 bg-gh-sage">
+  <div class="max-w-5xl mx-auto px-6">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+      <div class="reveal">
+        <div class="font-display font-800 text-3xl text-gh-gold">300+</div>
+        <div class="text-gh-deep/70 text-sm mt-1">Ghanaian foods</div>
+      </div>
+      <div class="reveal">
+        <div class="font-display font-800 text-3xl text-gh-gold">AI</div>
+        <div class="text-gh-deep/70 text-sm mt-1">Powered by Claude</div>
+      </div>
+      <div class="reveal">
+        <div class="font-display font-800 text-3xl text-gh-gold">100%</div>
+        <div class="text-gh-deep/70 text-sm mt-1">Free to use</div>
+      </div>
+      <div class="reveal">
+        <div class="font-display font-800 text-3xl text-gh-gold">4.9★</div>
+        <div class="text-gh-deep/70 text-sm mt-1">User rating</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────── FEATURES ─────────────────── -->
+<section id="features" class="py-24 bg-gh-cream">
+  <div class="max-w-6xl mx-auto px-6">
+
+    <div class="text-center mb-16 reveal">
+      <div class="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full text-xs font-600 text-gh-green" style="background: rgba(0,122,61,.08); border: 1px solid rgba(0,122,61,.15);">
+        What's inside
+      </div>
+      <h2 class="font-display font-800 text-gh-deep leading-tight" style="font-size: clamp(1.8rem, 4vw, 2.8rem);">
+        Everything you need<br/>to eat well in Ghana
+      </h2>
+      <p class="text-gh-deep/50 mt-4 max-w-lg mx-auto leading-relaxed">
+        Built specifically for Ghanaian foods, with a nutrition database sourced from the FAO/INFOODS West African Food Composition Table.
+      </p>
+    </div>
+
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
+
+      <div class="fcard reveal">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl mb-5" style="background: rgba(0,122,61,.1);">📸</div>
+        <h3 class="font-display font-700 text-gh-deep text-lg mb-2">AI Food Scan</h3>
+        <p class="text-gh-deep/55 text-sm leading-relaxed">Point your camera at any Ghanaian dish — ChopWise identifies it and pulls nutrition data instantly.</p>
+      </div>
+
+      <div class="fcard reveal" style="transition-delay:.1s">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl mb-5" style="background: rgba(59,15,46,.15);">🇬🇭</div>
+        <h3 class="font-display font-700 text-gh-deep text-lg mb-2">Local Food Database</h3>
+        <p class="text-gh-deep/55 text-sm leading-relaxed">Jollof Rice, Fufu, Banku, Waakye, Kelewele — 300+ local foods with accurate nutrition data.</p>
+      </div>
+
+      <div class="fcard reveal" style="transition-delay:.2s">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl mb-5" style="background: rgba(99,102,241,.1);">📊</div>
+        <h3 class="font-display font-700 text-gh-deep text-lg mb-2">Macro Tracking</h3>
+        <p class="text-gh-deep/55 text-sm leading-relaxed">Track calories, protein, carbs, and fat automatically. See your macros visualised in real time.</p>
+      </div>
+
+      <div class="fcard reveal" style="transition-delay:.3s">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl mb-5" style="background: rgba(16,185,129,.1);">📅</div>
+        <h3 class="font-display font-700 text-gh-deep text-lg mb-2">14-Day History</h3>
+        <p class="text-gh-deep/55 text-sm leading-relaxed">A bar chart showing your calorie intake for the last two weeks — spot patterns and stay consistent.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────── HOW IT WORKS ─────────────────── -->
+<section id="how-it-works" class="py-24" style="background: white;">
+  <div class="max-w-5xl mx-auto px-6">
+
+    <div class="text-center mb-16 reveal">
+      <div class="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full text-xs font-600 text-gh-green" style="background: rgba(0,122,61,.08); border: 1px solid rgba(0,122,61,.15);">
+        Simple by design
+      </div>
+      <h2 class="font-display font-800 text-gh-deep" style="font-size: clamp(1.8rem, 4vw, 2.8rem);">
+        Log a meal in 3 seconds
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-8 relative">
+
+      <div class="text-center reveal">
+        <div class="relative inline-block mb-6">
+          <div class="w-16 h-16 rounded-2xl bg-gh-deep flex items-center justify-center text-3xl mx-auto">📷</div>
+          <div class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gh-gold flex items-center justify-center text-xs font-800 text-white font-display">1</div>
+        </div>
+        <h3 class="font-display font-700 text-gh-deep text-xl mb-2">Snap a photo</h3>
+        <p class="text-gh-deep/50 text-sm leading-relaxed">Open the app and tap the camera button. Point it at your meal — even a plate of Banku & Okro stew works.</p>
+      </div>
+
+      <!-- connector -->
+      <div class="hidden md:block absolute left-1/3 top-8 w-1/6 h-px" style="background: linear-gradient(90deg, rgba(0,122,61,.3), rgba(0,122,61,.05));"></div>
+      <div class="hidden md:block absolute left-2/3 top-8 w-1/6 h-px" style="background: linear-gradient(90deg, rgba(0,122,61,.3), rgba(0,122,61,.05));"></div>
+
+      <div class="text-center reveal" style="transition-delay:.15s">
+        <div class="relative inline-block mb-6">
+          <div class="w-16 h-16 rounded-2xl bg-gh-green flex items-center justify-center text-3xl mx-auto">🤖</div>
+          <div class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gh-gold flex items-center justify-center text-xs font-800 text-white font-display">2</div>
+        </div>
+        <h3 class="font-display font-700 text-gh-deep text-xl mb-2">AI identifies it</h3>
+        <p class="text-gh-deep/50 text-sm leading-relaxed">Claude AI recognises the food and returns calories, protein, carbs, and fat — all in under 3 seconds.</p>
+      </div>
+
+      <div class="text-center reveal" style="transition-delay:.3s">
+        <div class="relative inline-block mb-6">
+          <div class="w-16 h-16 rounded-2xl flex items-center justify-center text-3xl mx-auto" style="background:#3b0f2e; color:white;">✅</div>
+          <div class="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-gh-gold flex items-center justify-center text-xs font-800 text-white font-display">3</div>
+        </div>
+        <h3 class="font-display font-700 text-gh-deep text-xl mb-2">Log & track</h3>
+        <p class="text-gh-deep/50 text-sm leading-relaxed">Confirm and it's added to your daily log. Watch your calorie ring fill up and hit your daily goal.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────── APP SCREENSHOTS ─────────────────── -->
+<section class="py-24 overflow-hidden" style="background: #99afa3;">
+  <div class="max-w-6xl mx-auto px-6">
+
+    <div class="text-center mb-16 reveal">
+      <h2 class="font-display font-800 text-gh-deep" style="font-size: clamp(1.8rem, 4vw, 2.8rem);">
+        Every screen, <span class="text-gradient">beautifully designed</span>
+      </h2>
+      <p class="text-gh-deep/70 mt-4 max-w-md mx-auto">Built for clarity so you spend less time in the app and more time enjoying your food.</p>
+    </div>
+
+    <div class="flex justify-center gap-6 flex-wrap">
+
+      <!-- Screen 1: Scan -->
+      <div class="reveal" style="transition-delay:.05s">
+        <div class="phone" style="width:180px;height:368px;">
+          <div class="phone-screen" style="background:#0a180c;padding:32px 10px 10px;">
+            <p style="text-align:center;font-size:9px;color:rgba(255,255,255,.35);margin-bottom:10px;font-weight:600;letter-spacing:.05em;">AI FOOD SCANNER</p>
+            <!-- Camera viewfinder -->
+            <div style="background:#111;border-radius:16px;height:160px;position:relative;overflow:hidden;margin-bottom:10px;border:1px solid rgba(255,255,255,.08);">
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;">
+                <span style="font-size:48px;">🥘</span>
+              </div>
+              <!-- Scan corners -->
+              <div style="position:absolute;top:8px;left:8px;width:20px;height:20px;border-top:2px solid #007A3D;border-left:2px solid #007A3D;border-radius:3px 0 0 0;"></div>
+              <div style="position:absolute;top:8px;right:8px;width:20px;height:20px;border-top:2px solid #007A3D;border-right:2px solid #007A3D;border-radius:0 3px 0 0;"></div>
+              <div style="position:absolute;bottom:8px;left:8px;width:20px;height:20px;border-bottom:2px solid #007A3D;border-left:2px solid #007A3D;border-radius:0 0 0 3px;"></div>
+              <div style="position:absolute;bottom:8px;right:8px;width:20px;height:20px;border-bottom:2px solid #007A3D;border-right:2px solid #007A3D;border-radius:0 0 3px 0;"></div>
+              <!-- Scan line -->
+              <div style="position:absolute;top:50%;left:8px;right:8px;height:1px;background:linear-gradient(90deg,transparent,#3b0f2e,transparent);filter:brightness(1.5);opacity:.7;"></div>
+            </div>
+            <!-- Result -->
+            <div style="background:rgba(0,122,61,.2);border-radius:12px;padding:10px;border:1px solid rgba(0,122,61,.3);">
+              <div style="font-size:10px;color:white;font-weight:700;margin-bottom:4px;">🍲 Groundnut Soup</div>
+              <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;text-align:center;">
+                <div><div style="font-size:9px;font-weight:700;color:#F59E0B;">520</div><div style="font-size:6.5px;color:rgba(255,255,255,.4);">kcal</div></div>
+                <div><div style="font-size:9px;font-weight:700;color:#10B981;">32g</div><div style="font-size:6.5px;color:rgba(255,255,255,.4);">prot</div></div>
+                <div><div style="font-size:9px;font-weight:700;color:#6366F1;">28g</div><div style="font-size:6.5px;color:rgba(255,255,255,.4);">carbs</div></div>
+                <div><div style="font-size:9px;font-weight:700;color:#EC4899;">38g</div><div style="font-size:6.5px;color:rgba(255,255,255,.4);">fat</div></div>
+              </div>
+            </div>
+            <div style="margin-top:8px;background:#007A3D;border-radius:10px;padding:8px;text-align:center;font-size:9px;color:white;font-weight:700;">Add to Log</div>
+          </div>
+        </div>
+        <p class="text-gh-deep/60 text-xs text-center mt-3 font-600">AI Scan</p>
+      </div>
+
+      <!-- Screen 2: Home (bigger / centre) -->
+      <div class="reveal" style="transition-delay:.1s;transform:translateY(-20px);">
+        <div class="phone" style="width:200px;height:408px;box-shadow: 0 60px 100px rgba(0,0,0,.6), 0 0 0 1px rgba(59,15,46,.15);">
+          <div class="phone-screen" style="background:#0d1f0f;">
+            <div style="font-size:8px;color:rgba(255,255,255,.4);margin-bottom:12px;display:flex;justify-content:space-between;"><span>9:41</span><span>●●●</span></div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+              <div>
+                <p style="font-size:9px;color:rgba(255,255,255,.4);">Monday, 29 Apr</p>
+                <p style="font-size:13px;color:white;font-weight:700;font-family:'Syne',sans-serif;">Dashboard</p>
+              </div>
+              <div style="background:rgba(59,15,46,.5);border-radius:8px;padding:4px 8px;font-size:8px;color:white;font-weight:600;">Goal: 2100</div>
+            </div>
+            <div style="display:flex;justify-content:center;margin-bottom:12px;">
+              <svg width="100" height="100" viewBox="0 0 90 90">
+                <circle cx="45" cy="45" r="38" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="8"/>
+                <circle cx="45" cy="45" r="38" fill="none" stroke="#007A3D" stroke-width="8" stroke-linecap="round" stroke-dasharray="239" stroke-dashoffset="60" transform="rotate(-90 45 45)"/>
+                <circle cx="45" cy="45" r="38" fill="none" stroke="#3b0f2e" stroke-width="8" stroke-linecap="round" stroke-dasharray="239" stroke-dashoffset="180" transform="rotate(-90 45 45)" style="opacity:.4"/>
+                <text x="45" y="41" text-anchor="middle" fill="white" style="font-size:12px;font-weight:800;font-family:Syne,sans-serif">1,620</text>
+                <text x="45" y="51" text-anchor="middle" fill="rgba(255,255,255,.4)" style="font-size:7px;">480 left</text>
+              </svg>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px;">
+              <div style="background:rgba(245,158,11,.15);border-radius:8px;padding:5px;text-align:center;"><div style="font-size:9px;font-weight:700;color:#F59E0B;">82g</div><div style="font-size:6px;color:rgba(255,255,255,.35);">Protein</div></div>
+              <div style="background:rgba(16,185,129,.15);border-radius:8px;padding:5px;text-align:center;"><div style="font-size:9px;font-weight:700;color:#10B981;">195g</div><div style="font-size:6px;color:rgba(255,255,255,.35);">Carbs</div></div>
+              <div style="background:rgba(99,102,241,.15);border-radius:8px;padding:5px;text-align:center;"><div style="font-size:9px;font-weight:700;color:#6366F1;">52g</div><div style="font-size:6px;color:rgba(255,255,255,.35);">Fat</div></div>
+            </div>
+            <div style="font-size:8px;color:rgba(255,255,255,.35);margin-bottom:5px;font-weight:600;letter-spacing:.04em;">MEALS</div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <div style="background:rgba(245,158,11,.08);border-radius:8px;padding:6px 8px;display:flex;justify-content:space-between;"><div style="display:flex;align-items:center;gap:5px;"><span style="font-size:12px;">🍌</span><span style="font-size:8px;color:white;font-weight:600;">Kelewele</span></div><span style="font-size:8px;color:#F59E0B;font-weight:700;">320</span></div>
+              <div style="background:rgba(16,185,129,.08);border-radius:8px;padding:6px 8px;display:flex;justify-content:space-between;"><div style="display:flex;align-items:center;gap:5px;"><span style="font-size:12px;">🍚</span><span style="font-size:8px;color:white;font-weight:600;">Jollof Rice</span></div><span style="font-size:8px;color:#10B981;font-weight:700;">580</span></div>
+              <div style="background:rgba(99,102,241,.08);border-radius:8px;padding:6px 8px;display:flex;justify-content:space-between;"><div style="display:flex;align-items:center;gap:5px;"><span style="font-size:12px;">🫙</span><span style="font-size:8px;color:white;font-weight:600;">Fufu & Soup</span></div><span style="font-size:8px;color:#6366F1;font-weight:700;">720</span></div>
+            </div>
+            <div style="position:absolute;bottom:0;left:0;right:0;height:38px;background:#0a180c;display:flex;align-items:center;justify-content:space-around;border-top:1px solid rgba(255,255,255,.05);">
+              <span style="font-size:15px;">🏠</span><span style="font-size:15px;opacity:.3">📊</span><div style="background:#007A3D;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px">📷</div><span style="font-size:15px;opacity:.3">📅</span><span style="font-size:15px;opacity:.3">👤</span>
+            </div>
+          </div>
+        </div>
+        <p class="text-gh-deep/60 text-xs text-center mt-3 font-600">Dashboard</p>
+      </div>
+
+      <!-- Screen 3: History -->
+      <div class="reveal" style="transition-delay:.15s">
+        <div class="phone" style="width:180px;height:368px;">
+          <div class="phone-screen" style="background:#0a180c;padding:32px 10px 10px;">
+            <p style="font-size:11px;color:white;font-weight:700;font-family:'Syne',sans-serif;margin-bottom:12px;">14-Day History</p>
+            <!-- Bar chart -->
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;height:90px;margin-bottom:8px;padding:0 2px;">
+              <!-- bars for 14 days, heights approximating realistic calorie variation -->
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(0,122,61,.4);border-radius:3px;height:55px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">M</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(0,122,61,.4);border-radius:3px;height:70px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">T</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(0,122,61,.4);border-radius:3px;height:45px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">W</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(0,122,61,.4);border-radius:3px;height:80px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">T</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(0,122,61,.4);border-radius:3px;height:60px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">F</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(59,15,46,.4);border-radius:3px;height:88px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">S</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(59,15,46,.4);border-radius:3px;height:72px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">S</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(0,122,61,.4);border-radius:3px;height:50px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">M</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(0,122,61,.4);border-radius:3px;height:65px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">T</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(0,122,61,.4);border-radius:3px;height:48px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">W</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(0,122,61,.4);border-radius:3px;height:75px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">T</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(0,122,61,.4);border-radius:3px;height:62px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">F</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:rgba(59,15,46,.5);border-radius:3px;height:85px;"></div><div style="font-size:5px;color:rgba(255,255,255,.3)">S</div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex:1"><div style="width:100%;background:#007A3D;border-radius:3px;height:68px;border:1px solid rgba(59,15,46,.4);"></div><div style="font-size:5px;color:#3b0f2e;font-weight:700">T</div></div>
+            </div>
+            <!-- goal line label -->
+            <div style="display:flex;align-items:center;gap:4px;margin-bottom:10px;">
+              <div style="width:12px;height:1px;background:#3b0f2e;opacity:.5"></div>
+              <span style="font-size:7px;color:rgba(255,255,255,.3);">Goal: 2,100 kcal/day</span>
+            </div>
+            <!-- stats -->
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+              <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px;">
+                <div style="font-size:10px;font-weight:700;color:white;">1,842</div>
+                <div style="font-size:7px;color:rgba(255,255,255,.35);">avg kcal / day</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px;">
+                <div style="font-size:10px;font-weight:700;color:#10B981;">11 / 14</div>
+                <div style="font-size:7px;color:rgba(255,255,255,.35);">days on goal</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="text-gh-deep/60 text-xs text-center mt-3 font-600">History</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ─────────────────── TESTIMONIALS ─────────────────── -->
+<section id="testimonials" class="py-24 bg-gh-cream">
+  <div class="max-w-5xl mx-auto px-6">
+
+    <div class="text-center mb-16 reveal">
+      <div class="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full text-xs font-600 text-gh-green" style="background: rgba(0,122,61,.08); border: 1px solid rgba(0,122,61,.15);">
+        Real users, real results
+      </div>
+      <h2 class="font-display font-800 text-gh-deep" style="font-size: clamp(1.8rem, 4vw, 2.8rem);">
+        Ghanaians love ChopWise
+      </h2>
+    </div>
+
+    <div class="grid md:grid-cols-3 gap-6">
+
+      <div class="tcard reveal">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" style="background: rgba(0,122,61,.1);">👨🏿</div>
+          <div>
+            <div class="font-display font-700 text-gh-deep text-sm">Kwame A.</div>
+            <div class="text-xs text-gh-deep/40">Accra, Ghana</div>
+          </div>
+          <div class="ml-auto text-gh-gold text-sm">★★★★★</div>
+        </div>
+        <p class="text-gh-deep/70 text-sm leading-relaxed">
+          "Finally an app that knows what Waakye is! I've been using it for 3 weeks and I've already lost 4kg just by being more aware of my portions."
+        </p>
+      </div>
+
+      <div class="tcard reveal" style="transition-delay:.1s">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" style="background: rgba(59,15,46,.15);">👩🏾</div>
+          <div>
+            <div class="font-display font-700 text-gh-deep text-sm">Abena M.</div>
+            <div class="text-xs text-gh-deep/40">Kumasi, Ghana</div>
+          </div>
+          <div class="ml-auto text-gh-gold text-sm">★★★★★</div>
+        </div>
+        <p class="text-gh-deep/70 text-sm leading-relaxed">
+          "The AI recognized my mom's kontomire stew from a photo. I was shocked. It's so accurate. No more googling nutrition info for every dish."
+        </p>
+      </div>
+
+      <div class="tcard reveal" style="transition-delay:.2s">
+        <div class="flex items-center gap-3 mb-4">
+          <div class="w-10 h-10 rounded-full flex items-center justify-center text-xl" style="background: rgba(99,102,241,.1);">👨🏾</div>
+          <div>
+            <div class="font-display font-700 text-gh-deep text-sm">Yaw O.</div>
+            <div class="text-xs text-gh-deep/40">Takoradi, Ghana</div>
+          </div>
+          <div class="ml-auto text-gh-gold text-sm">★★★★★</div>
+        </div>
+        <p class="text-gh-deep/70 text-sm leading-relaxed">
+          "Tried every calorie app and none of them had Fufu or Banku. ChopWise has everything. The history chart keeps me motivated every morning."
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Rating badges -->
+    <div class="mt-12 flex justify-center gap-8 flex-wrap reveal">
+      <div class="text-center">
+        <div class="font-display font-800 text-5xl text-gh-green">4.9</div>
+        <div class="text-gh-gold text-lg">★★★★★</div>
+        <div class="text-gh-deep/40 text-sm mt-1">App Store</div>
+      </div>
+      <div class="w-px bg-gh-deep/10 hidden md:block"></div>
+      <div class="text-center">
+        <div class="font-display font-800 text-5xl text-gh-green">4.8</div>
+        <div class="text-gh-gold text-lg">★★★★★</div>
+        <div class="text-gh-deep/40 text-sm mt-1">Google Play</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ─────────────────── CTA ─────────────────── -->
+<section id="download" class="py-24 hero-bg kente-bg relative overflow-hidden">
+  <div class="max-w-3xl mx-auto px-6 text-center relative z-10">
+
+    <div class="reveal">
+      <div class="inline-flex items-center gap-2 mb-6 px-3 py-1 rounded-full text-xs font-600 text-gh-gold" style="background: rgba(59,15,46,.5); border: 1px solid rgba(59,15,46,.7);">
+        100% free — no subscription needed
+      </div>
+      <h2 class="font-display font-800 text-gh-deep mb-5" style="font-size: clamp(2rem, 5vw, 3.2rem); line-height: 1.1;">
+        Start eating smarter<br/>today, for free.
+      </h2>
+      <p class="text-gh-deep/70 mb-10 leading-relaxed max-w-md mx-auto">
+        Download ChopWise and log your first meal in under a minute. No sign-up required to get started.
+      </p>
+
+      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+        <a href="#" class="btn-gold flex items-center justify-center gap-2.5 font-display text-base">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          Download on App Store
+        </a>
+        <a href="#" class="btn-outline flex items-center justify-center gap-2.5 font-display text-base">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3.18 23.28c.31.17.67.17.99-.01l12.76-7.04-2.88-2.87-10.87 9.92zM.35 1.32C.13 1.67 0 2.12 0 2.66v18.68c0 .54.13.99.36 1.34l.07.07 10.46-10.46v-.25L.42 1.25l-.07.07zM20.12 9.82l-2.67-1.47-3.19 3.19 3.19 3.19 2.68-1.48c.77-.42.77-1.11.01-1.53l-.02.1zM4.17.72L16.93 7.76 14.05 10.64 3.18.72c.32-.18.68-.18.99 0z"/></svg>
+          Get it on Google Play
+        </a>
+      </div>
+
+      <p class="text-gh-deep/50 text-xs mt-8">No account required to start · Works offline for manual logging · Data stays on your device</p>
+    </div>
+
+  </div>
+</section>
+
+
+<!-- ─────────────────── KENTE DIVIDER ─────────────────── -->
+
+
+<!-- ─────────────────── FOOTER ─────────────────── -->
+<footer class="py-12 bg-gh-sage">
+  <div class="max-w-5xl mx-auto px-6">
+    <div class="flex flex-col md:flex-row justify-between items-center gap-8">
+
+      <!-- Logo + tagline -->
+      <div class="text-center md:text-left">
+        <div class="flex items-center gap-2.5 justify-center md:justify-start mb-2">
+          <div class="w-7 h-7 rounded-xl flex items-center justify-center" style="background: #007A3D;">
+            <svg width="16" height="16" viewBox="0 0 18 18" fill="none">
+              <circle cx="9" cy="9" r="7" stroke="#3b0f2e" stroke-width="2"/>
+              <path d="M6 9.5 C6.5 8 7.5 7 9 7 C10.5 7 11.5 8 12 9.5" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+              <circle cx="9" cy="11" r="1.5" fill="#3b0f2e"/>
+            </svg>
+          </div>
+          <span class="font-display font-700 text-gh-deep">ChopWise</span>
+        </div>
+        <p class="text-gh-deep/60 text-xs">Track Ghanaian foods with AI. Free, forever.</p>
+      </div>
+
+      <!-- Links -->
+      <div class="flex gap-8">
+        <a href="#features"     class="text-gh-deep/70 hover:text-gh-deep text-sm transition-colors">Features</a>
+        <a href="#"             class="text-gh-deep/70 hover:text-gh-deep text-sm transition-colors">Privacy</a>
+        <a href="#"             class="text-gh-deep/70 hover:text-gh-deep text-sm transition-colors">Terms</a>
+        <a href="mailto:theshinglesway@gmail.com" class="text-gh-deep/70 hover:text-gh-deep text-sm transition-colors">Contact</a>
+      </div>
+
+      <!-- Social -->
+      <div class="flex gap-4">
+        <a href="#" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" style="background: rgba(0,46,23,.08);" onmouseover="this.style.background='rgba(0,46,23,.15)'" onmouseout="this.style.background='rgba(0,46,23,.08)'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white" opacity=".6"><path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/></svg>
+        </a>
+        <a href="#" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" style="background: rgba(0,46,23,.08);" onmouseover="this.style.background='rgba(0,46,23,.15)'" onmouseout="this.style.background='rgba(0,46,23,.08)'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white" opacity=".6"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+        </a>
+        <a href="#" class="w-8 h-8 rounded-full flex items-center justify-center transition-colors" style="background: rgba(0,46,23,.08);" onmouseover="this.style.background='rgba(0,46,23,.15)'" onmouseout="this.style.background='rgba(0,46,23,.08)'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="white" opacity=".6"><path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-2.88 2.5 2.89 2.89 0 0 1-2.89-2.89 2.89 2.89 0 0 1 2.89-2.89c.28 0 .54.04.79.1V9.01a6.31 6.31 0 0 0-.79-.05 6.34 6.34 0 0 0-6.34 6.34 6.34 6.34 0 0 0 6.34 6.34 6.34 6.34 0 0 0 6.33-6.34V8.69a8.27 8.27 0 0 0 4.84 1.56V6.79a4.85 4.85 0 0 1-1.07-.1z"/></svg>
+        </a>
+      </div>
+    </div>
+
+    <div class="mt-8 pt-8 text-center text-gh-deep/40 text-xs" style="border-top: 1px solid rgba(255,255,255,.06);">
+      © 2026 ChopWise. Made with 🇬🇭 for Ghana.
+    </div>
+  </div>
+</footer>
+
+
+<!-- ─────────────────── JS ─────────────────── -->
+<script>
+  // Nav scroll effect
+  const nav = document.getElementById('nav');
+  window.addEventListener('scroll', () => {
+    nav.classList.toggle('nav-scrolled', window.scrollY > 40);
+  }, { passive: true });
+
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('visible');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+  reveals.forEach(el => io.observe(el));
+</script>
+
+</body>
+</html>
