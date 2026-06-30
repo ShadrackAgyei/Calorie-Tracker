@@ -46,3 +46,7 @@ chopwise-flutter/android/.gradle/
 
 # Vercel
 .vercel
+
+# Secrets — never commit API keys
+geminiapi.txt
+*.secret.txt

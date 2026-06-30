@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -27,6 +26,8 @@ export default function ScanScreen() {
   const [phase, setPhase] = useState<'camera' | 'scanning' | 'review'>('camera');
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [mealType, setMealType] = useState<typeof MEAL_TYPES[number]>('lunch');
+  const [scanError, setScanError] = useState<string | null>(null);
+  const lastUri = useRef<string | null>(null);
   if (!permission) return <View />;
 
   if (!permission.granted) {
@@ -40,23 +41,27 @@ export default function ScanScreen() {
     );
   }
 
-  const handleCapture = async () => {
+  const runScan = async (uri: string) => {
+    lastUri.current = uri;
+    setScanError(null);
+    setPhase('scanning');
     try {
-      const photo = await cameraRef.current?.takePictureAsync({ quality: 0.7 });
-      if (!photo) return;
-      setPhase('scanning');
-      const items = await scanMealPhoto(photo.uri);
+      const items = await scanMealPhoto(uri);
       if (items.length === 0) {
-        Alert.alert('No food detected', 'Try taking a clearer photo of your meal.');
-        setPhase('camera');
+        setScanError('No food detected in this photo. Try a clearer shot of your meal.');
         return;
       }
       setScannedItems(items);
       setPhase('review');
     } catch (err) {
-      Alert.alert('Scan failed', err instanceof Error ? err.message : 'Check your internet connection and try again.');
-      setPhase('camera');
+      setScanError(err instanceof Error ? err.message : 'Scan failed. Check your connection and try again.');
     }
+  };
+
+  const handleCapture = async () => {
+    const photo = await cameraRef.current?.takePictureAsync({ quality: 0.7 });
+    if (!photo) return;
+    await runScan(photo.uri);
   };
 
   const handlePickFromGallery = async () => {
@@ -65,20 +70,7 @@ export default function ScanScreen() {
       quality: 0.7,
     });
     if (result.canceled) return;
-    setPhase('scanning');
-    try {
-      const items = await scanMealPhoto(result.assets[0].uri);
-      if (items.length === 0) {
-        Alert.alert('No food detected', 'Try a different photo.');
-        setPhase('camera');
-        return;
-      }
-      setScannedItems(items);
-      setPhase('review');
-    } catch (err) {
-      Alert.alert('Scan failed', err instanceof Error ? err.message : 'Check your internet connection and try again.');
-      setPhase('camera');
-    }
+    await runScan(result.assets[0].uri);
   };
 
   const handleLog = async () => {
@@ -107,9 +99,30 @@ export default function ScanScreen() {
     return (
       <View style={styles.scanningContainer}>
         <View style={styles.scanningCard}>
-          <ActivityIndicator size="large" color="#007A3D" />
-          <Text style={styles.scanningText}>Analysing your meal...</Text>
-          <Text style={styles.scanningSubtext}>Identifying foods with AI</Text>
+          {scanError ? (
+            <>
+              <Text style={styles.scanningErrorIcon}>⚠️</Text>
+              <Text style={styles.scanningErrorTitle}>
+                {scanError.includes('No food') ? 'No food detected' : 'Scan failed'}
+              </Text>
+              <Text style={styles.scanningErrorMsg}>{scanError}</Text>
+              <TouchableOpacity
+                style={styles.retryInlineBtn}
+                onPress={() => lastUri.current ? runScan(lastUri.current) : setPhase('camera')}
+              >
+                <Text style={styles.retryInlineBtnText}>Try Again</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => setPhase('camera')}>
+                <Text style={styles.backToCamera}>← Back to camera</Text>
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <ActivityIndicator size="large" color="#007A3D" />
+              <Text style={styles.scanningText}>Analysing your meal...</Text>
+              <Text style={styles.scanningSubtext}>Identifying foods with AI</Text>
+            </>
+          )}
         </View>
       </View>
     );
@@ -177,12 +190,13 @@ export default function ScanScreen() {
 
   return (
     <View style={styles.container}>
-      <CameraView ref={cameraRef} style={styles.camera} facing="back">
-        <View style={styles.overlay}>
+      <View style={styles.cameraWrapper}>
+        <CameraView ref={cameraRef} style={styles.camera} facing="back" />
+        <View style={styles.overlay} pointerEvents="none">
           <View style={styles.frame} />
           <Text style={styles.hint}>Point at your meal</Text>
         </View>
-      </CameraView>
+      </View>
 
       <View style={styles.cameraControls}>
         <TouchableOpacity style={styles.galleryBtn} onPress={handlePickFromGallery}>
@@ -200,6 +214,7 @@ export default function ScanScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
+  cameraWrapper: { flex: 1, position: 'relative' },
   permissionContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   permissionText: { fontSize: 16, textAlign: 'center', color: '#374151', marginBottom: 20 },
   btn: { backgroundColor: '#007A3D', borderRadius: 10, paddingVertical: 12, paddingHorizontal: 24 },
@@ -271,6 +286,18 @@ const styles = StyleSheet.create({
   },
   scanningText: { fontSize: 17, fontWeight: '700', color: '#111827' },
   scanningSubtext: { fontSize: 14, color: '#6B7280' },
+  scanningErrorIcon: { fontSize: 36, marginBottom: 4 },
+  scanningErrorTitle: { fontSize: 17, fontWeight: '700', color: '#111827' },
+  scanningErrorMsg: { fontSize: 13, color: '#6B7280', textAlign: 'center', lineHeight: 18 },
+  retryInlineBtn: {
+    marginTop: 8,
+    backgroundColor: '#007A3D',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 28,
+  },
+  retryInlineBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  backToCamera: { fontSize: 13, color: '#9CA3AF', marginTop: 10 },
   reviewContent: { padding: 16, paddingBottom: 100 },
   reviewTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginBottom: 4 },
   reviewTotal: { fontSize: 34, fontWeight: '800', color: '#007A3D', marginBottom: 20, letterSpacing: -0.5 },

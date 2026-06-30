@@ -1,6 +1,6 @@
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
+const GEMINI_MODEL = 'gemini-2.5-flash';
 
 const SYSTEM_PROMPT = `You are a Ghanaian food and nutrition expert with deep knowledge of traditional Ghanaian cuisine.
 Identify every food item visible in the image, estimate realistic Ghanaian portion sizes, and return calories and macronutrients.
