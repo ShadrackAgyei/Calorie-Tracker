@@ -53,6 +53,7 @@
       "supabaseUrl": "https://jnmrrksubjqrhnlbcatb.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpubXJya3N1YmpxcmhubGJjYXRiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc0MDg5ODMsImV4cCI6MjA5Mjk4NDk4M30.KG3ifU5QdEHzKTOELkXBbljNrdmz2PjCZhhPPY_veWQ",
       "googleAndroidClientId": "386696108600-gd6dsr4gbe56jflg0qptakf49jg78npo.apps.googleusercontent.com",
+      "googleIosClientId": "YOUR_GOOGLE_IOS_CLIENT_ID.apps.googleusercontent.com",
       "googleWebClientId": "386696108600-ksi4fbg3ltpguf5kspkc9lbua6d0knru.apps.googleusercontent.com"
     }
   }

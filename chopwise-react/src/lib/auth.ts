@@ -10,6 +10,7 @@ import { useMealStore } from '../store/useMealStore';
 WebBrowser.maybeCompleteAuthSession();
 
 const androidClientId = Constants.expoConfig?.extra?.googleAndroidClientId as string;
+const iosClientId = Constants.expoConfig?.extra?.googleIosClientId as string;
 const webClientId = Constants.expoConfig?.extra?.googleWebClientId as string;
 
 export function useGoogleSignIn() {
@@ -17,6 +18,7 @@ export function useGoogleSignIn() {
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId,
+    iosClientId,
     webClientId,
     responseType: ResponseType.IdToken,
     scopes: ['openid', 'profile', 'email'],
